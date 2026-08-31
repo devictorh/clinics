@@ -17,6 +17,9 @@ func NewRouter(clinics ClinicService, dentists DentistService, logger *slog.Logg
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	mux.HandleFunc("GET /openapi.yaml", handleOpenAPISpec)
+	mux.HandleFunc("GET /docs", handleSwaggerUI)
+
 	ch := &clinicHandler{svc: clinics}
 	mux.HandleFunc("POST /api/v1/clinics", ch.create)
 	mux.HandleFunc("GET /api/v1/clinics", ch.list)
