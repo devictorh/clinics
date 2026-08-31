@@ -1,0 +1,31 @@
+version: "2"
+
+linters:
+  # standard: errcheck, govet, ineffassign, staticcheck, unused
+  default: standard
+  enable:
+    - bodyclose
+    - copyloopvar
+    - errorlint
+    - gocritic
+    - noctx
+    - revive
+    - thelper
+    - tparallel
+    - unparam
+  exclusions:
+    rules:
+      # Testes podem repetir parâmetros e dispensar context em helpers
+      - path: _test\.go
+        linters:
+          - unparam
+          - noctx
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/devictorh/clinics
