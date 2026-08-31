@@ -1,0 +1,179 @@
+# Roteiro de validação manual da Clinics API (VS Code REST Client)
+# Suba a API com `make run` e execute as requisições em sequência.
+# Substitua os IDs capturados das respostas anteriores onde indicado.
+
+@baseUrl = http://localhost:8080
+
+### Health check
+GET {{baseUrl}}/healthz
+
+### Contrato OpenAPI
+GET {{baseUrl}}/openapi.yaml
+
+### ─────────────────────────── Clínicas ───────────────────────────
+
+### Criar clínica (CNPJ com máscara)
+# @name createClinic
+POST {{baseUrl}}/api/v1/clinics
+Content-Type: application/json
+
+{
+  "document": "11.222.333/0001-81",
+  "legal_name": "Clínica Sorriso LTDA",
+  "trade_name": "Sorriso Odonto"
+}
+
+### Criar clínica com dados bancários e CNPJ alfanumérico
+POST {{baseUrl}}/api/v1/clinics
+Content-Type: application/json
+
+{
+  "document": "12.ABC.345/01DE-35",
+  "legal_name": "Odonto Prime LTDA",
+  "trade_name": "Odonto Prime",
+  "bank_account": { "bank": "341", "agency": "0001", "account": "12345-6" }
+}
+
+### Documento duplicado → 409
+POST {{baseUrl}}/api/v1/clinics
+Content-Type: application/json
+
+{
+  "document": "11222333000181",
+  "legal_name": "Cópia LTDA",
+  "trade_name": "Cópia"
+}
+
+### Documento inválido → 400
+POST {{baseUrl}}/api/v1/clinics
+Content-Type: application/json
+
+{
+  "document": "11.222.333/0001-99",
+  "legal_name": "Inválida LTDA",
+  "trade_name": "Inválida"
+}
+
+### Listar clínicas
+GET {{baseUrl}}/api/v1/clinics
+
+### Buscar clínica
+GET {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}
+
+### Alterar dados cadastrais
+PUT {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}
+Content-Type: application/json
+
+{
+  "legal_name": "Clínica Sorriso Aberto LTDA",
+  "trade_name": "Sorriso Aberto"
+}
+
+### Definir/alterar dados bancários
+PUT {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}/bank-account
+Content-Type: application/json
+
+{
+  "bank": "260",
+  "agency": "0001",
+  "account": "98765-4"
+}
+
+### ─────────────────────────── Dentistas ──────────────────────────
+
+### Criar dentista (admin e responsável legal)
+# @name createDentist
+POST {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}/dentists
+Content-Type: application/json
+
+{
+  "name": "Dra. Ana Souza",
+  "phone": "(11) 98765-4321",
+  "email": "ana@sorriso.com.br",
+  "admin": true
+}
+
+### Listar dentistas da clínica
+GET {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}/dentists
+
+### Buscar dentista
+GET {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}/dentists/{{createDentist.response.body.id}}
+
+### Alterar dentista
+PUT {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}/dentists/{{createDentist.response.body.id}}
+Content-Type: application/json
+
+{
+  "name": "Dra. Ana Souza Lima",
+  "phone": "11 3265-4321",
+  "email": "ana.lima@sorriso.com.br",
+  "admin": true
+}
+
+### Email inválido → 400
+POST {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}/dentists
+Content-Type: application/json
+
+{
+  "name": "Dr. Erro",
+  "phone": "(11) 98765-4321",
+  "email": "sem-arroba"
+}
+
+### ─────────────────────────── Pagamentos ─────────────────────────
+
+### Criar cobrança pix (R$ 150,00 em centavos)
+# @name createPayment
+POST {{baseUrl}}/api/v1/payments
+Content-Type: application/json
+
+{
+  "clinic_id": "{{createClinic.response.body.id}}",
+  "amount": 15000,
+  "dentist_id": "{{createDentist.response.body.id}}"
+}
+
+### Acompanhar a cobrança — repita: pending → approved em 2–5s
+GET {{baseUrl}}/api/v1/payments/{{createPayment.response.body.id}}
+
+### Histórico de cobranças da clínica
+GET {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}/payments
+
+### Valor inválido → 400
+POST {{baseUrl}}/api/v1/payments
+Content-Type: application/json
+
+{
+  "clinic_id": "{{createClinic.response.body.id}}",
+  "amount": 0
+}
+
+### ─────────────────────── Soft delete e cascata ──────────────────
+
+### Excluir dentista (soft delete)
+DELETE {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}/dentists/{{createDentist.response.body.id}}
+
+### Excluir clínica (soft delete + cascata nos dentistas)
+DELETE {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}
+
+### Clínica excluída some da API → 404
+GET {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}
+
+### Cobrança para clínica excluída é rejeitada → 404
+POST {{baseUrl}}/api/v1/payments
+Content-Type: application/json
+
+{
+  "clinic_id": "{{createClinic.response.body.id}}",
+  "amount": 100
+}
+
+### O documento fica liberado para recadastro após o soft delete
+POST {{baseUrl}}/api/v1/clinics
+Content-Type: application/json
+
+{
+  "document": "11.222.333/0001-81",
+  "legal_name": "Sorriso Renovado LTDA",
+  "trade_name": "Sorriso Renovado"
+}
