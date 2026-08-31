@@ -128,6 +128,47 @@ func toDentistResponses(dentists []domain.Dentist) []dentistResponse {
 	return list
 }
 
+type paymentRequest struct {
+	ClinicID  string `json:"clinic_id"`
+	Amount    int64  `json:"amount"`
+	DentistID string `json:"dentist_id"`
+}
+
+type paymentResponse struct {
+	ID               string     `json:"id"`
+	ClinicID         string     `json:"clinic_id"`
+	DentistID        *string    `json:"dentist_id"`
+	Amount           int64      `json:"amount"`
+	Status           string     `json:"status"`
+	PixCopyPasteCode string     `json:"pix_copy_paste_code"`
+	CreatedAt        time.Time  `json:"created_at"`
+	ApprovedAt       *time.Time `json:"approved_at"`
+}
+
+func toPaymentResponse(p domain.Payment) paymentResponse {
+	resp := paymentResponse{
+		ID:               p.ID,
+		ClinicID:         p.ClinicID,
+		Amount:           p.Amount.Cents(),
+		Status:           string(p.Status),
+		PixCopyPasteCode: p.PixCode,
+		CreatedAt:        p.CreatedAt,
+		ApprovedAt:       p.ApprovedAt,
+	}
+	if p.DentistID != "" {
+		resp.DentistID = &p.DentistID
+	}
+	return resp
+}
+
+func toPaymentResponses(payments []domain.Payment) []paymentResponse {
+	list := make([]paymentResponse, len(payments))
+	for i, p := range payments {
+		list[i] = toPaymentResponse(p)
+	}
+	return list
+}
+
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {

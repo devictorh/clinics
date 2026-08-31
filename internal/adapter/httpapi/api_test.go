@@ -2,16 +2,19 @@ package httpapi_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/devictorh/clinics/internal/adapter/httpapi"
 	"github.com/devictorh/clinics/internal/adapter/httpapi/middleware"
 	"github.com/devictorh/clinics/internal/adapter/memory"
+	"github.com/devictorh/clinics/internal/adapter/pixsim"
 	"github.com/devictorh/clinics/internal/core/service"
 )
 
@@ -19,10 +22,21 @@ func newAPI(t *testing.T) http.Handler {
 	t.Helper()
 	clinicRepo := memory.NewClinicRepository()
 	dentistRepo := memory.NewDentistRepository()
+	paymentRepo := memory.NewPaymentRepository()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	paymentSvc := service.NewPaymentService(paymentRepo, clinicRepo, dentistRepo, pixsim.NewProvider(),
+		service.WithApprovalDelay(func() time.Duration { return 5 * time.Millisecond }))
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = paymentSvc.Shutdown(ctx)
+	})
+
 	return httpapi.NewRouter(
 		service.NewClinicService(clinicRepo, dentistRepo),
 		service.NewDentistService(dentistRepo, clinicRepo),
+		paymentSvc,
 		logger,
 	)
 }
