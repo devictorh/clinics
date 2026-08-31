@@ -19,6 +19,10 @@ var (
 	// domínio. Erros de validação embrulham este sentinela e são
 	// detectáveis com errors.Is.
 	ErrInvalidInput = errors.New("dados inválidos")
+
+	// ErrInvalidStatusTransition indica uma transição de status de
+	// pagamento fora do ciclo pending → approved.
+	ErrInvalidStatusTransition = errors.New("transição de status inválida")
 )
 
 func invalidInput(msg string) error {

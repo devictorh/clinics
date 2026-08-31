@@ -10,7 +10,7 @@ import (
 // NewRouter monta as rotas da API sobre o http.ServeMux nativo (métodos e
 // path params nos patterns, Go 1.22+) e aplica a cadeia de middlewares:
 // request ID → access log → recovery.
-func NewRouter(clinics ClinicService, dentists DentistService, logger *slog.Logger) http.Handler {
+func NewRouter(clinics ClinicService, dentists DentistService, payments PaymentService, logger *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -34,6 +34,11 @@ func NewRouter(clinics ClinicService, dentists DentistService, logger *slog.Logg
 	mux.HandleFunc("GET /api/v1/clinics/{clinicID}/dentists/{dentistID}", dh.get)
 	mux.HandleFunc("PUT /api/v1/clinics/{clinicID}/dentists/{dentistID}", dh.update)
 	mux.HandleFunc("DELETE /api/v1/clinics/{clinicID}/dentists/{dentistID}", dh.delete)
+
+	ph := &paymentHandler{svc: payments}
+	mux.HandleFunc("POST /api/v1/payments", ph.create)
+	mux.HandleFunc("GET /api/v1/payments/{paymentID}", ph.get)
+	mux.HandleFunc("GET /api/v1/clinics/{clinicID}/payments", ph.listByClinic)
 
 	// rotas desconhecidas respondem com o mesmo envelope JSON dos erros
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {

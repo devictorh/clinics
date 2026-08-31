@@ -16,6 +16,7 @@ import (
 
 	"github.com/devictorh/clinics/internal/adapter/httpapi"
 	"github.com/devictorh/clinics/internal/adapter/memory"
+	"github.com/devictorh/clinics/internal/adapter/pixsim"
 	"github.com/devictorh/clinics/internal/core/service"
 )
 
@@ -32,11 +33,13 @@ func run() error {
 
 	clinicRepo := memory.NewClinicRepository()
 	dentistRepo := memory.NewDentistRepository()
+	paymentRepo := memory.NewPaymentRepository()
 
 	clinicSvc := service.NewClinicService(clinicRepo, dentistRepo)
 	dentistSvc := service.NewDentistService(dentistRepo, clinicRepo)
+	paymentSvc := service.NewPaymentService(paymentRepo, clinicRepo, dentistRepo, pixsim.NewProvider())
 
-	handler := httpapi.NewRouter(clinicSvc, dentistSvc, logger)
+	handler := httpapi.NewRouter(clinicSvc, dentistSvc, paymentSvc, logger)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -71,5 +74,8 @@ func run() error {
 	logger.Info("encerrando api")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return server.Shutdown(shutdownCtx)
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return err
+	}
+	return paymentSvc.Shutdown(shutdownCtx)
 }
