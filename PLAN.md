@@ -191,7 +191,9 @@ Git Flow: `main` (estável, protegida — merge somente via Pull Request) + `dev
 - Commits: `feat(http): add clinic handlers with native servemux`, `feat(http): add request-id and logging middleware`, `docs(api): add openapi specification with embedded swagger ui`.
 
 ### Etapa 5 — Pagamentos Pix (`feature/payments-pix`)
-- Domínio `Payment` (status `pending`/`approved`, transição validada) + port `PixProvider`.
+- Domínio `Payment` — entidade com identidade própria (aggregate root separado de `Clinic`, referenciando `ClinicID`/`DentistID` por ID): identificador da cobrança, `Amount`, `Status` (`pending`/`approved`), código Pix copia-e-cola, `CreatedAt` e `ApprovedAt`. A transição de status é a única mutação permitida na vida do registro, validada no domínio (`ErrInvalidStatusTransition`); pagamento não tem update nem delete — é histórico financeiro imutável por construção, preservado inclusive após soft delete da clínica.
+- Port `PixProvider` para a geração da cobrança.
+- Repositório in-memory com índice por clínica para listagem do histórico ordenado por criação; armazena e devolve cópias, mantendo a transição de status sob o write lock — sem data race entre o worker de aprovação e leituras concorrentes.
 - `PaymentService.Create` valida que a clínica existe **e está ativa** (não soft-deletada) e, se `dentist_id` informado, que o dentista está ativo e pertence à clínica — nunca criar cobrança para registro deletado.
 - Adapter `pixsim`: gera txid e BR Code copia-e-cola simulado (formato inspirado em EMV, sem CRC real).
 - Confirmação em background: goroutine por pagamento com delay aleatório 2–5s **injetável** (função `delay func() time.Duration`), respeitando `context` do servidor no shutdown (WaitGroup para não vazar goroutines).
