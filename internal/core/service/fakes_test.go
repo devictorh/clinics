@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/devictorh/clinics/internal/core/domain"
@@ -162,6 +163,99 @@ func (f *fakeDentistRepo) DeleteByClinicID(_ context.Context, clinicID string) e
 		}
 	}
 	return nil
+}
+
+// fakePaymentRepo é sincronizado porque o worker de aprovação do
+// PaymentService o acessa em goroutine própria.
+type fakePaymentRepo struct {
+	mu    sync.Mutex
+	items map[string]domain.Payment
+
+	createErr, getErr, listErr, approveErr error
+}
+
+var _ port.PaymentRepository = (*fakePaymentRepo)(nil)
+
+func newFakePaymentRepo() *fakePaymentRepo {
+	return &fakePaymentRepo{items: make(map[string]domain.Payment)}
+}
+
+func (f *fakePaymentRepo) Create(_ context.Context, payment domain.Payment) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.createErr != nil {
+		return f.createErr
+	}
+	f.items[payment.ID] = payment
+	return nil
+}
+
+func (f *fakePaymentRepo) Get(_ context.Context, id string) (domain.Payment, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.getErr != nil {
+		return domain.Payment{}, f.getErr
+	}
+	payment, ok := f.items[id]
+	if !ok {
+		return domain.Payment{}, domain.ErrNotFound
+	}
+	return payment, nil
+}
+
+func (f *fakePaymentRepo) ListByClinic(_ context.Context, clinicID string) ([]domain.Payment, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	list := make([]domain.Payment, 0)
+	for _, payment := range f.items {
+		if payment.ClinicID == clinicID {
+			list = append(list, payment)
+		}
+	}
+	return list, nil
+}
+
+func (f *fakePaymentRepo) Approve(_ context.Context, id string) (domain.Payment, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.approveErr != nil {
+		return domain.Payment{}, f.approveErr
+	}
+	payment, ok := f.items[id]
+	if !ok {
+		return domain.Payment{}, domain.ErrNotFound
+	}
+	if err := payment.Approve(); err != nil {
+		return domain.Payment{}, err
+	}
+	f.items[id] = payment
+	return payment, nil
+}
+
+func (f *fakePaymentRepo) get(id string) (domain.Payment, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	payment, ok := f.items[id]
+	return payment, ok
+}
+
+type fakePixProvider struct {
+	code  string
+	err   error
+	calls int
+}
+
+var _ port.PixProvider = (*fakePixProvider)(nil)
+
+func (f *fakePixProvider) GenerateCharge(_ context.Context, _ port.PixChargeInput) (string, error) {
+	f.calls++
+	if f.err != nil {
+		return "", f.err
+	}
+	return f.code, nil
 }
 
 func seedClinic(t *testing.T, repo *fakeClinicRepo) domain.Clinic {
