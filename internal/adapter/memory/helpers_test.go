@@ -2,6 +2,7 @@ package memory_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,11 +46,28 @@ func newClinic(t *testing.T, rawDoc string) domain.Clinic {
 
 func newDentist(t *testing.T, clinicID, name string) domain.Dentist {
 	t.Helper()
-	d, err := domain.NewDentist(clinicID, name, "(11) 98765-4321", "d@x.com", false)
+	return newDentistWithEmail(t, clinicID, name, emailFor(name))
+}
+
+func newDentistWithEmail(t *testing.T, clinicID, name, email string) domain.Dentist {
+	t.Helper()
+	d, err := domain.NewDentist(clinicID, name, "(11) 98765-4321", email, false)
 	if err != nil {
 		t.Fatalf("NewDentist: %v", err)
 	}
 	return *d
+}
+
+// emailFor deriva um email ASCII do nome, para que dentistas de teste com
+// nomes distintos não colidam no índice de unicidade.
+func emailFor(name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String() + "@x.com"
 }
 
 func at(base time.Time, offset time.Duration) time.Time {

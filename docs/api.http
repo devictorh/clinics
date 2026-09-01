@@ -120,6 +120,16 @@ Content-Type: application/json
   "email": "sem-arroba"
 }
 
+### Email duplicado na mesma clínica → 409
+POST {{baseUrl}}/api/v1/clinics/{{createClinic.response.body.id}}/dentists
+Content-Type: application/json
+
+{
+  "name": "Dra. Ana Souza (duplicada)",
+  "phone": "(11) 98765-4321",
+  "email": "ana.lima@sorriso.com.br"
+}
+
 ### ─────────────────────────── Pagamentos ─────────────────────────
 
 ### Criar cobrança pix (R$ 150,00 em centavos)

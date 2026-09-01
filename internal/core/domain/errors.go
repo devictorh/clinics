@@ -15,6 +15,10 @@ var (
 	// mesmo documento.
 	ErrDocumentAlreadyExists = errors.New("documento já cadastrado")
 
+	// ErrEmailAlreadyExists indica que já existe um dentista ativo com o
+	// mesmo email na clínica.
+	ErrEmailAlreadyExists = errors.New("email já cadastrado na clínica")
+
 	// ErrInvalidInput indica dados de entrada que violam invariantes do
 	// domínio. Erros de validação embrulham este sentinela e são
 	// detectáveis com errors.Is.

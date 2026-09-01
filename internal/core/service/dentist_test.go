@@ -76,6 +76,17 @@ func TestDentistServiceCreateErros(t *testing.T) {
 			t.Errorf("erro = %v, quer ErrInvalidInput", err)
 		}
 	})
+
+	t.Run("email duplicado propagado do repositório", func(t *testing.T) {
+		t.Parallel()
+		svc, clinics, dentists := newDentistService()
+		clinic := seedClinic(t, clinics)
+		dentists.createErr = domain.ErrEmailAlreadyExists
+
+		if _, err := svc.Create(ctx, clinic.ID, validDentistInput()); !errors.Is(err, domain.ErrEmailAlreadyExists) {
+			t.Errorf("erro = %v, quer ErrEmailAlreadyExists", err)
+		}
+	})
 }
 
 func TestDentistServiceGet(t *testing.T) {

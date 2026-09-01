@@ -3,6 +3,7 @@ package memory_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -152,6 +153,49 @@ func TestDentistRepoDeleteByClinicID(t *testing.T) {
 	}
 }
 
+func TestDentistRepoEmailUnicoNaClinica(t *testing.T) {
+	t.Parallel()
+	repo := memory.NewDentistRepository()
+	ctx := context.Background()
+
+	ana := newDentistWithEmail(t, "clinic-A", "Dra. Ana", "ana@x.com")
+	if err := repo.Create(ctx, ana); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	duplicada := newDentistWithEmail(t, "clinic-A", "Outra Ana", "ANA@X.COM")
+	if err := repo.Create(ctx, duplicada); !errors.Is(err, domain.ErrEmailAlreadyExists) {
+		t.Errorf("email duplicado (case-insensitive): erro = %v, quer ErrEmailAlreadyExists", err)
+	}
+
+	// o mesmo profissional pode existir em outra clínica
+	outraClinica := newDentistWithEmail(t, "clinic-B", "Dra. Ana", "ana@x.com")
+	if err := repo.Create(ctx, outraClinica); err != nil {
+		t.Errorf("mesmo email em outra clínica: %v", err)
+	}
+
+	// update não pode colidir com email de outro dentista ativo
+	bruno := newDentistWithEmail(t, "clinic-A", "Dr. Bruno", "bruno@x.com")
+	if err := repo.Create(ctx, bruno); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := bruno.Update(bruno.Name, bruno.Phone, "ana@x.com", false); err != nil {
+		t.Fatalf("Update entidade: %v", err)
+	}
+	if err := repo.Update(ctx, bruno); !errors.Is(err, domain.ErrEmailAlreadyExists) {
+		t.Errorf("update colidindo: erro = %v, quer ErrEmailAlreadyExists", err)
+	}
+
+	// soft delete libera o email para recadastro na clínica
+	if err := repo.Delete(ctx, ana.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	renovada := newDentistWithEmail(t, "clinic-A", "Ana Renovada", "ana@x.com")
+	if err := repo.Create(ctx, renovada); err != nil {
+		t.Errorf("email liberado após soft delete: %v", err)
+	}
+}
+
 func TestDentistRepoConcorrencia(t *testing.T) {
 	t.Parallel()
 	repo := memory.NewDentistRepository()
@@ -168,7 +212,7 @@ func TestDentistRepoConcorrencia(t *testing.T) {
 			}
 			switch i % 3 {
 			case 0:
-				_ = repo.Create(ctx, newDentist(t, clinicID, "Concorrente"))
+				_ = repo.Create(ctx, newDentist(t, clinicID, fmt.Sprintf("Concorrente %d", i)))
 			case 1:
 				_, _ = repo.ListByClinic(ctx, clinicID)
 			default:

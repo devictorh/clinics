@@ -30,6 +30,10 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 		writeJSON(w, http.StatusConflict, errorEnvelope{errorBody{
 			Code: "document_already_exists", Message: domain.ErrDocumentAlreadyExists.Error(),
 		}})
+	case errors.Is(err, domain.ErrEmailAlreadyExists):
+		writeJSON(w, http.StatusConflict, errorEnvelope{errorBody{
+			Code: "email_already_exists", Message: domain.ErrEmailAlreadyExists.Error(),
+		}})
 	case errors.Is(err, domain.ErrInvalidInput):
 		writeJSON(w, http.StatusBadRequest, errorEnvelope{errorBody{
 			Code: "invalid_input", Message: err.Error(),

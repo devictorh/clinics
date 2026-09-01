@@ -122,6 +122,10 @@ paths:
     post:
       tags: [dentists]
       summary: Cria um dentista vinculado à clínica
+      description: >
+        O email é único entre os dentistas ativos da clínica
+        (case-insensitive). O mesmo profissional pode ser cadastrado em
+        clínicas diferentes.
       requestBody:
         required: true
         content:
@@ -135,6 +139,7 @@ paths:
               schema: { $ref: "#/components/schemas/Dentist" }
         "400": { $ref: "#/components/responses/InvalidInput" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/EmailConflict" }
     get:
       tags: [dentists]
       summary: Lista os dentistas ativos da clínica
@@ -178,6 +183,7 @@ paths:
               schema: { $ref: "#/components/schemas/Dentist" }
         "400": { $ref: "#/components/responses/InvalidInput" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/EmailConflict" }
     delete:
       tags: [dentists]
       summary: Exclui um dentista (soft delete)
@@ -282,6 +288,11 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
+    EmailConflict:
+      description: Já existe dentista ativo com o mesmo email na clínica
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
 
   schemas:
     Error:
@@ -292,7 +303,14 @@ components:
           properties:
             code:
               type: string
-              enum: [invalid_input, not_found, document_already_exists, internal_error]
+              enum:
+                [
+                  invalid_input,
+                  not_found,
+                  document_already_exists,
+                  email_already_exists,
+                  internal_error,
+                ]
             message: { type: string }
 
     BankAccount:

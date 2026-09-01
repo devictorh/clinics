@@ -7,7 +7,7 @@ API REST em Go para gestão de clínicas odontológicas: cadastro de clínicas c
 ## Funcionalidades
 
 - **Clínicas** — CRUD completo com documento (CPF ou CNPJ, incluindo o formato alfanumérico vigente desde jul/2026), razão social, nome fantasia e dados bancários alteráveis por endpoint dedicado.
-- **Dentistas** — sempre vinculados a uma clínica (sub-recurso na URL), com flag de administrador/responsável legal.
+- **Dentistas** — sempre vinculados a uma clínica (sub-recurso na URL), com flag de administrador/responsável legal e email único entre os ativos da clínica.
 - **Pagamentos Pix** — cobrança com código copia-e-cola no formato BR Code (simulado) e ciclo de status `pending → approved`, confirmado em background após 2–5s, como um webhook de PSP real.
 - **Soft delete em tudo que é cadastro** — dados financeiros exigem trilha de auditoria: exclusões marcam `deleted_at`, somem da API (404) e preservam o histórico de pagamentos.
 - Logs estruturados JSON (`log/slog`) correlacionados por `X-Request-ID`, graceful shutdown e documentação viva em `/docs` (Swagger UI) e `/openapi.yaml`.
@@ -108,6 +108,7 @@ Fluxo de uma requisição: `middleware (request-id → log → recovery) → han
 - **`Amount` em centavos (`int64`)** — elimina erros de ponto flutuante; conversão só na borda.
 - **CNPJ alfanumérico** — validação de dígitos verificadores cobre o formato novo da RFB (valor do caractere = ASCII−48), verificada contra o exemplo oficial.
 - **Repositórios devolvem cópias** — valores, não ponteiros: o worker de aprovação nunca compartilha memória mutável com leitores (provado sob `-race`).
+- **Unicidade escopada por clínica** — o email do dentista é único (case-insensitive) entre os ativos de cada clínica, não globalmente: o mesmo profissional pode atender em várias clínicas, e cada registro é um vínculo. Como no documento da clínica, a invariante vive dentro do repositório, atômica sob o mesmo lock.
 - **Dentista de outra clínica responde 404** — não vaza a existência de registros entre clínicas.
 - **PUT completo + endpoint dedicado de dados bancários** — semântica simples e espelha o requisito de alteração independente.
 - **Confirmação com delay injetável** — 2–5s em produção, zero nos testes; `Shutdown` encerra os workers sem vazar goroutines, com prioridade para aprovações cujo prazo já venceu (determinismo).
