@@ -127,6 +127,7 @@ O projeto foi desenvolvido com assistência de IA (Claude Code) operando sob dir
 
 - O plano inicial propunha **hard delete**; a revisão impôs soft delete pela natureza financeira dos dados — decisão que redesenhou repositórios, services e API.
 - A primeira validação de CNPJ cobria apenas o formato numérico; a revisão exigiu suporte ao **CNPJ alfanumérico** já vigente.
+- Exercitando a API rodando, encontrei uma lacuna que nem a especificação nem a IA levantaram: **nada impedia cadastrar o mesmo dentista repetidamente** na clínica (um duplo envio já bastava). Entre restringir o email globalmente ou por clínica, escolhi por clínica — no nosso modelo cada registro de dentista é um vínculo, e o mesmo profissional pode atender em mais de uma clínica; unicidade global bloquearia um caso real do negócio. A regra ficou no repositório, atômica sob o mesmo lock, simétrica à do documento da clínica.
 - Uma versão do value object `Document` gerada por IA veio com `sql.Scanner`, `driver.Valuer` e serializadores — código especulativo, descartado por YAGNI após revisão crítica; do mesmo material, o teste de propriedade dos dígitos verificadores foi aproveitado.
 - Sugestões de biblioteca (container de DI, geradores de OpenAPI) foram avaliadas e recusadas quando o custo em dependências e clareza superava o benefício no escopo.
 
