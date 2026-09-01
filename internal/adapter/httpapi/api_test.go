@@ -262,6 +262,26 @@ func TestDentistErrors(t *testing.T) {
 		wantErrorCode(t, rec, "invalid_input")
 	})
 
+	t.Run("email duplicado na mesma clínica", func(t *testing.T) {
+		t.Parallel()
+		clinic := createClinic(t, api, "111.444.777-35")
+		dentist := map[string]any{
+			"name": "Dra. Ana", "phone": "(11) 98765-4321", "email": "ana@sorriso.com.br",
+		}
+
+		rec := doJSON(t, api, http.MethodPost, "/api/v1/clinics/"+clinic.ID+"/dentists", dentist)
+		wantStatus(t, rec, http.StatusCreated)
+
+		rec = doJSON(t, api, http.MethodPost, "/api/v1/clinics/"+clinic.ID+"/dentists", dentist)
+		wantStatus(t, rec, http.StatusConflict)
+		wantErrorCode(t, rec, "email_already_exists")
+
+		// o mesmo profissional pode ser cadastrado em outra clínica
+		outra := createClinic(t, api, "94.253.470/0001-00")
+		rec = doJSON(t, api, http.MethodPost, "/api/v1/clinics/"+outra.ID+"/dentists", dentist)
+		wantStatus(t, rec, http.StatusCreated)
+	})
+
 	t.Run("dentista de outra clínica responde not found", func(t *testing.T) {
 		t.Parallel()
 		clinicA := createClinic(t, api, "12.ABC.345/01DE-35")

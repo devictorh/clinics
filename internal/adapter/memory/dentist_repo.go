@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,19 +12,28 @@ import (
 )
 
 // DentistRepository implementa port.DentistRepository sobre map + RWMutex.
+// O índice de email cobre apenas dentistas ativos, por clínica: a
+// unicidade é garantida de forma atômica sob o mesmo lock do map, o soft
+// delete libera o email para recadastro na clínica, e o mesmo email pode
+// existir em clínicas diferentes.
 type DentistRepository struct {
-	mu       sync.RWMutex
-	dentists map[string]domain.Dentist
+	mu         sync.RWMutex
+	dentists   map[string]domain.Dentist
+	emailIndex map[string]string
 }
 
 var _ port.DentistRepository = (*DentistRepository)(nil)
 
 // NewDentistRepository cria um repositório de dentistas vazio.
 func NewDentistRepository() *DentistRepository {
-	return &DentistRepository{dentists: make(map[string]domain.Dentist)}
+	return &DentistRepository{
+		dentists:   make(map[string]domain.Dentist),
+		emailIndex: make(map[string]string),
+	}
 }
 
-// Create persiste o dentista.
+// Create persiste o dentista, garantindo unicidade de email entre os
+// ativos da clínica.
 func (r *DentistRepository) Create(_ context.Context, dentist domain.Dentist) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -31,7 +41,12 @@ func (r *DentistRepository) Create(_ context.Context, dentist domain.Dentist) er
 	if _, ok := r.dentists[dentist.ID]; ok {
 		return fmt.Errorf("%w: id já cadastrado", domain.ErrInvalidInput)
 	}
+	key := emailKey(dentist.ClinicID, dentist.Email)
+	if _, ok := r.emailIndex[key]; ok {
+		return domain.ErrEmailAlreadyExists
+	}
 	r.dentists[dentist.ID] = dentist
+	r.emailIndex[key] = dentist.ID
 	return nil
 }
 
@@ -65,7 +80,8 @@ func (r *DentistRepository) ListByClinic(_ context.Context, clinicID string) ([]
 }
 
 // Update substitui os dados de um dentista ativo; o vínculo com a clínica
-// é imutável.
+// é imutável e o novo email não pode colidir com outro dentista ativo da
+// clínica.
 func (r *DentistRepository) Update(_ context.Context, dentist domain.Dentist) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -77,11 +93,21 @@ func (r *DentistRepository) Update(_ context.Context, dentist domain.Dentist) er
 	if current.ClinicID != dentist.ClinicID {
 		return fmt.Errorf("%w: vínculo com a clínica é imutável", domain.ErrInvalidInput)
 	}
+
+	oldKey := emailKey(current.ClinicID, current.Email)
+	newKey := emailKey(dentist.ClinicID, dentist.Email)
+	if newKey != oldKey {
+		if _, ok := r.emailIndex[newKey]; ok {
+			return domain.ErrEmailAlreadyExists
+		}
+		delete(r.emailIndex, oldKey)
+		r.emailIndex[newKey] = dentist.ID
+	}
 	r.dentists[dentist.ID] = dentist
 	return nil
 }
 
-// Delete marca o dentista como excluído.
+// Delete marca o dentista como excluído e libera seu email na clínica.
 func (r *DentistRepository) Delete(_ context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -92,6 +118,7 @@ func (r *DentistRepository) Delete(_ context.Context, id string) error {
 	}
 	dentist.Delete()
 	r.dentists[id] = dentist
+	delete(r.emailIndex, emailKey(dentist.ClinicID, dentist.Email))
 	return nil
 }
 
@@ -104,7 +131,12 @@ func (r *DentistRepository) DeleteByClinicID(_ context.Context, clinicID string)
 		if dentist.ClinicID == clinicID && !dentist.IsDeleted() {
 			dentist.Delete()
 			r.dentists[id] = dentist
+			delete(r.emailIndex, emailKey(dentist.ClinicID, dentist.Email))
 		}
 	}
 	return nil
+}
+
+func emailKey(clinicID, email string) string {
+	return clinicID + "|" + strings.ToLower(email)
 }

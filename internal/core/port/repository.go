@@ -21,7 +21,9 @@ type ClinicRepository interface {
 
 // DentistRepository persiste dentistas com a mesma semântica de soft
 // delete e de cópias do ClinicRepository; DeleteByClinicID é a cascata do
-// soft delete da clínica.
+// soft delete da clínica. O email é único entre os dentistas ativos de
+// uma mesma clínica (case-insensitive) — o mesmo profissional pode
+// existir em clínicas diferentes.
 type DentistRepository interface {
 	Create(ctx context.Context, dentist domain.Dentist) error
 	Get(ctx context.Context, id string) (domain.Dentist, error)

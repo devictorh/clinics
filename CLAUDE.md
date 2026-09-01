@@ -18,7 +18,7 @@ API REST em Go para gestão de clínicas odontológicas: CRUD de clínicas (com 
 - **Soft delete sempre** (`DeletedAt *time.Time`): nada é removido fisicamente; leituras filtram deletados; a API responde 404 para registro deletado. Excluir clínica soft-deleta seus dentistas em cascata.
 - Documento (CPF/CNPJ) com validação de dígitos verificadores; único entre clínicas **ativas** (liberado para recadastro após soft delete).
 - Valores monetários: VO `Amount`, `int64` em centavos — nunca float.
-- Dentista existe apenas vinculado a uma clínica (sub-recurso na API).
+- Dentista existe apenas vinculado a uma clínica (sub-recurso na API); email único (case-insensitive) entre os dentistas **ativos** da mesma clínica — o mesmo profissional pode existir em clínicas diferentes.
 - Pagamento só pode ser criado para clínica/dentista ativos.
 - Status de pagamento: `pending → approved`, transição validada no domínio.
 
