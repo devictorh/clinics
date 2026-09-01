@@ -1,0 +1,16 @@
+# Binários e artefatos de build
+/bin/
+*.test
+
+# Relatórios de cobertura
+coverage.out
+coverage.html
+
+# Arquivos locais/temporários
+*.bkp
+*.pdf
+.env
+
+# IDEs
+.idea/
+.vscode/

@@ -1,0 +1,423 @@
+openapi: 3.0.3
+info:
+  title: Clinics API
+  description: |
+    API de gestão de clínicas odontológicas: cadastro de clínicas com dados
+    bancários, dentistas vinculados e recebimento de pagamentos via Pix
+    (simulado).
+
+    Convenções:
+    - Valores monetários em **centavos** (inteiro).
+    - Exclusões são **soft delete**: o registro deixa de ser visível (404),
+      mas o histórico de pagamentos é preservado.
+    - Erros seguem o envelope `{"error": {"code", "message"}}`.
+    - Toda resposta carrega o header `X-Request-ID` (ecoado da requisição
+      ou gerado).
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: clinics
+  - name: dentists
+  - name: payments
+  - name: system
+
+paths:
+  /api/v1/clinics:
+    post:
+      tags: [clinics]
+      summary: Cria uma clínica
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClinicCreate" }
+      responses:
+        "201":
+          description: Clínica criada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Clinic" }
+        "400": { $ref: "#/components/responses/InvalidInput" }
+        "409":
+          description: Já existe clínica ativa com o mesmo documento
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    get:
+      tags: [clinics]
+      summary: Lista as clínicas ativas
+      responses:
+        "200":
+          description: Clínicas ordenadas por criação
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Clinic" }
+
+  /api/v1/clinics/{clinicID}:
+    parameters:
+      - $ref: "#/components/parameters/ClinicID"
+    get:
+      tags: [clinics]
+      summary: Busca uma clínica
+      responses:
+        "200":
+          description: Clínica encontrada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Clinic" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [clinics]
+      summary: Altera os dados cadastrais
+      description: O documento (CPF/CNPJ) é imutável após a criação.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClinicUpdate" }
+      responses:
+        "200":
+          description: Clínica atualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Clinic" }
+        "400": { $ref: "#/components/responses/InvalidInput" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [clinics]
+      summary: Exclui uma clínica (soft delete)
+      description: >
+        Exclui a clínica e, em cascata, seus dentistas. O documento fica
+        liberado para novo cadastro; o histórico de pagamentos é preservado.
+      responses:
+        "204": { description: Clínica excluída }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/clinics/{clinicID}/bank-account:
+    parameters:
+      - $ref: "#/components/parameters/ClinicID"
+    put:
+      tags: [clinics]
+      summary: Define ou substitui os dados bancários
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BankAccount" }
+      responses:
+        "200":
+          description: Clínica com os dados bancários atualizados
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Clinic" }
+        "400": { $ref: "#/components/responses/InvalidInput" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/clinics/{clinicID}/dentists:
+    parameters:
+      - $ref: "#/components/parameters/ClinicID"
+    post:
+      tags: [dentists]
+      summary: Cria um dentista vinculado à clínica
+      description: >
+        O email é único entre os dentistas ativos da clínica
+        (case-insensitive). O mesmo profissional pode ser cadastrado em
+        clínicas diferentes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DentistInput" }
+      responses:
+        "201":
+          description: Dentista criado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dentist" }
+        "400": { $ref: "#/components/responses/InvalidInput" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/EmailConflict" }
+    get:
+      tags: [dentists]
+      summary: Lista os dentistas ativos da clínica
+      responses:
+        "200":
+          description: Dentistas ordenados por criação
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Dentist" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/clinics/{clinicID}/dentists/{dentistID}:
+    parameters:
+      - $ref: "#/components/parameters/ClinicID"
+      - $ref: "#/components/parameters/DentistID"
+    get:
+      tags: [dentists]
+      summary: Busca um dentista da clínica
+      responses:
+        "200":
+          description: Dentista encontrado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dentist" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [dentists]
+      summary: Altera os dados cadastrais do dentista
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DentistInput" }
+      responses:
+        "200":
+          description: Dentista atualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dentist" }
+        "400": { $ref: "#/components/responses/InvalidInput" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/EmailConflict" }
+    delete:
+      tags: [dentists]
+      summary: Exclui um dentista (soft delete)
+      responses:
+        "204": { description: Dentista excluído }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/payments:
+    post:
+      tags: [payments]
+      summary: Cria uma cobrança Pix para uma clínica
+      description: >
+        Gera uma cobrança com código Pix copia-e-cola simulado. A cobrança
+        nasce `pending` e é aprovada automaticamente pelo provedor simulado
+        após alguns segundos. Clínica (e dentista, se informado) devem
+        estar ativos — nunca se cria cobrança para registro excluído.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaymentCreate" }
+      responses:
+        "201":
+          description: Cobrança criada com status pending
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "400": { $ref: "#/components/responses/InvalidInput" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/payments/{paymentID}:
+    parameters:
+      - $ref: "#/components/parameters/PaymentID"
+    get:
+      tags: [payments]
+      summary: Consulta uma cobrança
+      description: Permite acompanhar a transição de status pending → approved.
+      responses:
+        "200":
+          description: Cobrança encontrada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/clinics/{clinicID}/payments:
+    parameters:
+      - $ref: "#/components/parameters/ClinicID"
+    get:
+      tags: [payments]
+      summary: Lista o histórico de cobranças da clínica
+      responses:
+        "200":
+          description: Cobranças ordenadas por criação
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Payment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /healthz:
+    get:
+      tags: [system]
+      summary: Health check
+      responses:
+        "200":
+          description: Aplicação saudável
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+components:
+  parameters:
+    ClinicID:
+      name: clinicID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DentistID:
+      name: dentistID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PaymentID:
+      name: paymentID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    NotFound:
+      description: Registro inexistente ou excluído (soft delete)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    InvalidInput:
+      description: Dados de entrada inválidos
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    EmailConflict:
+      description: Já existe dentista ativo com o mesmo email na clínica
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum:
+                [
+                  invalid_input,
+                  not_found,
+                  document_already_exists,
+                  email_already_exists,
+                  internal_error,
+                ]
+            message: { type: string }
+
+    BankAccount:
+      type: object
+      required: [bank, agency, account]
+      properties:
+        bank: { type: string, example: "341" }
+        agency: { type: string, example: "0001" }
+        account: { type: string, example: "12345-6" }
+
+    ClinicCreate:
+      type: object
+      required: [document, legal_name, trade_name]
+      properties:
+        document:
+          type: string
+          description: >
+            CPF (11 dígitos) ou CNPJ (14 caracteres; formato alfanumérico
+            suportado), com ou sem máscara.
+          example: "11.222.333/0001-81"
+        legal_name: { type: string, example: Clínica Sorriso LTDA }
+        trade_name: { type: string, example: Sorriso Odonto }
+        bank_account:
+          allOf: [{ $ref: "#/components/schemas/BankAccount" }]
+          nullable: true
+
+    ClinicUpdate:
+      type: object
+      required: [legal_name, trade_name]
+      properties:
+        legal_name: { type: string }
+        trade_name: { type: string }
+
+    Clinic:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        document: { type: string, example: "11222333000181" }
+        document_type: { type: string, enum: [cpf, cnpj] }
+        legal_name: { type: string }
+        trade_name: { type: string }
+        bank_account:
+          allOf: [{ $ref: "#/components/schemas/BankAccount" }]
+          nullable: true
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    DentistInput:
+      type: object
+      required: [name, phone, email]
+      properties:
+        name: { type: string, example: Dra. Ana Souza }
+        phone:
+          type: string
+          description: 10 ou 11 dígitos com DDD; máscara aceita.
+          example: "(11) 98765-4321"
+        email: { type: string, format: email }
+        admin:
+          type: boolean
+          default: false
+          description: Administrador e responsável legal da clínica.
+
+    Dentist:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        clinic_id: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string, example: "11987654321" }
+        email: { type: string, format: email }
+        admin: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    PaymentCreate:
+      type: object
+      required: [clinic_id, amount]
+      properties:
+        clinic_id: { type: string, format: uuid }
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Valor em centavos.
+          example: 15000
+        dentist_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Dentista ativo da clínica ao qual o pagamento é atribuído.
+
+    Payment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        clinic_id: { type: string, format: uuid }
+        dentist_id:
+          type: string
+          format: uuid
+          nullable: true
+        amount: { type: integer, format: int64, example: 15000 }
+        status: { type: string, enum: [pending, approved] }
+        pix_copy_paste_code:
+          type: string
+          description: Código Pix copia-e-cola (BR Code simulado).
+        created_at: { type: string, format: date-time }
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
