@@ -4,8 +4,7 @@ import (
 	"net/mail"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // Dentist representa um dentista, sempre vinculado a uma clínica. A flag
@@ -44,7 +43,7 @@ func NewDentist(clinicID, name, phone, email string, admin bool) (*Dentist, erro
 
 	now := time.Now().UTC()
 	return &Dentist{
-		ID:        uuid.NewString(),
+		ID:        uuid.New().String(),
 		ClinicID:  clinicID,
 		Name:      name,
 		Phone:     normalizedPhone,

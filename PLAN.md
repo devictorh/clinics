@@ -141,7 +141,7 @@ clinics/
 └── go.mod
 ```
 
-Regra de dependência: `adapter → core` (nunca o contrário). `core` importa apenas stdlib (+ uuid, se aprovado). Handlers HTTP dependem de interfaces de serviço; services dependem de ports.
+Regra de dependência: `adapter → core` (nunca o contrário). `core` importa apenas stdlib. Handlers HTTP dependem de interfaces de serviço; services dependem de ports.
 
 ### Decisão de persistência: `map` + `sync.RWMutex`
 
@@ -234,11 +234,11 @@ Convenções: table-driven tests, `t.Parallel()` onde seguro, `make test` roda `
 | **Soft delete + cascata** (dados financeiros) | Preserva auditoria vs. filtros de `deleted_at` em toda leitura e crescimento do storage | Filtro centralizado nos repositórios (única fonte da regra); API trata deletado como 404; documento CPF/CNPJ liberado para recadastro após delete (índice cobre só ativos — decisão documentada) |
 | **PUT completo + endpoint dedicado de bank-account** | Menos flexível que PATCH parcial | Espelha o requisito (dados bancários alteráveis de forma independente) e mantém semântica simples |
 | **Amount como int64 (centavos)** | Exige conversão na borda | Elimina erros de float em valores monetários |
-| **UUID (`google/uuid`)** — única dependência externa | vs. 100% stdlib | Justificável (padrão de mercado); plano B: `crypto/rand` hex se quisermos zero deps |
+| **UUID pelo pacote `uuid` da stdlib** (Go 1.27) | Exige toolchain 1.27+ vs. `google/uuid`, que roda em qualquer versão | `go.mod` já fixa `go 1.27.0` e o CI resolve por `go-version-file`; `uuid.New()` é v4, mesma semântica pretendida — o projeto fecha com zero dependências externas |
 | **OpenAPI escrito à mão** (vs. geração por anotações, ex. swaggo/swag) | Risco de drift manual entre spec e código vs. anotações verbosas nos handlers, CLI extra e Swagger 2.0 | API pequena (~15 endpoints) e estável; spec revisada a cada etapa e conferida na entrega; UI servida estática sem dependências Go |
 | **Hexagonal em projeto pequeno** | Overhead de camadas vs. clareza de fronteiras | Estrutura enxuta (3 pacotes no core) evita over-engineering mantendo os benefícios de testabilidade |
 
----
+--- 
 
 ## Verificação (pós-implementação de cada fase)
 

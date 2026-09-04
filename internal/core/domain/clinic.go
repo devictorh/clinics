@@ -3,8 +3,7 @@ package domain
 import (
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // BankAccount agrupa os dados bancários de recebimento de uma clínica.
@@ -62,7 +61,7 @@ func NewClinic(doc Document, legalName, tradeName string) (*Clinic, error) {
 
 	now := time.Now().UTC()
 	return &Clinic{
-		ID:        uuid.NewString(),
+		ID:        uuid.New().String(),
 		Document:  doc,
 		LegalName: legalName,
 		TradeName: tradeName,

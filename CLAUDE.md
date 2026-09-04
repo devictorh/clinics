@@ -9,7 +9,7 @@ API REST em Go para gestão de clínicas odontológicas: CRUD de clínicas (com 
 ## Arquitetura (regras invioláveis)
 
 - **Hexagonal**: dependências fluem `adapter → core`, nunca o contrário.
-- `internal/core/*` importa apenas stdlib (+ `google/uuid`, única dependência externa permitida).
+- `internal/core/*` importa apenas stdlib — o projeto não tem dependências externas (`go.mod` sem `require`); UUIDs vêm do pacote `uuid` da stdlib.
 - Handlers HTTP dependem de interfaces de service; services dependem de ports (`internal/core/port`); adapters implementam ports.
 - DTOs de request/response vivem no adapter HTTP, nunca no domínio.
 

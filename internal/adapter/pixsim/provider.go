@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/devictorh/clinics/internal/core/port"
 )
@@ -30,7 +29,7 @@ func NewProvider() *Provider { return &Provider{} }
 
 // GenerateCharge monta o código copia-e-cola da cobrança.
 func (p *Provider) GenerateCharge(_ context.Context, in port.PixChargeInput) (string, error) {
-	txid := strings.ReplaceAll(uuid.NewString(), "-", "")[:txidLen]
+	txid := strings.ReplaceAll(uuid.New().String(), "-", "")[:txidLen]
 
 	merchantAccount := tlv("00", "br.gov.bcb.pix") + tlv("01", pixKey)
 	payload := tlv("00", "01") +

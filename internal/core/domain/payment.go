@@ -3,8 +3,7 @@ package domain
 import (
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // PaymentStatus é o ciclo de vida de uma cobrança: pending → approved.
@@ -45,7 +44,7 @@ func NewPayment(clinicID, dentistID string, amount Amount, pixCode string) (*Pay
 	}
 
 	return &Payment{
-		ID:        uuid.NewString(),
+		ID:        uuid.New().String(),
 		ClinicID:  clinicID,
 		DentistID: dentistID,
 		Amount:    amount,
